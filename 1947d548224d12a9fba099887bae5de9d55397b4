@@ -1,0 +1,25 @@
+src/mcp-app.tsx
+  efa161cab906912e 1,4,63,67,72,96,107-108,111-139,166-169
+src/mcp-app.module.css
+  efa161cab906912e 62-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "1947d548224d12a9fba099887bae5de9d55397b4",
+  "prompts": {
+    "efa161cab906912e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "730a60a5-8661-491a-87aa-5223e78c46f8",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Andrii Chumak",
+      "messages": [],
+      "total_additions": 71,
+      "total_deletions": 6,
+      "accepted_lines": 71,
+      "overriden_lines": 0
+    }
+  }
+}
