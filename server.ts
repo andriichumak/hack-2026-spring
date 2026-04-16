@@ -10,16 +10,13 @@ const DIST_DIR = import.meta.filename.endsWith(".ts")
   ? path.join(import.meta.dirname, "dist")
   : import.meta.dirname;
 
-/**
- * Creates a new MCP server instance with tools and resources registered.
- */
 export function createServer(): McpServer {
   const server = new McpServer({
-    name: "Visualization App",
+    name: "Analytics App",
     version: "1.0.0",
   });
 
-  const resourceUri = "ui://show-visualization/mcp-app.html";
+  const resourceUri = "ui://analytics-app/mcp-app.html";
 
   registerAppTool(server,
     "show-visualization",
@@ -32,13 +29,33 @@ export function createServer(): McpServer {
       _meta: { ui: { resourceUri } },
     },
     async ({ visualizationId }): Promise<CallToolResult> => {
-      // For now, return the visualization ID as-is.
-      // This is where you'll add the real data fetching later.
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify({ visualizationId }),
+            text: JSON.stringify({ tool: "show-visualization", visualizationId }),
+          },
+        ],
+      };
+    },
+  );
+
+  registerAppTool(server,
+    "show-kda",
+    {
+      title: "Show KDA",
+      description: "Displays a KDA (Key Driver Analysis) by its ID.",
+      inputSchema: {
+        kdaId: z.string().describe("The ID of the KDA to display"),
+      },
+      _meta: { ui: { resourceUri } },
+    },
+    async ({ kdaId }): Promise<CallToolResult> => {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ tool: "show-kda", kdaId }),
           },
         ],
       };

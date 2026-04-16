@@ -30,7 +30,7 @@
   font-weight: var(--font-weight-bold);
 }
 
-.vizId {
+.itemId {
   font-family: var(--font-mono);
   font-size: var(--font-text-sm-size);
   color: var(--color-text-secondary);

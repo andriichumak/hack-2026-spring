@@ -1,30 +1,33 @@
-import type { App, McpUiHostContext } from "@modelcontextprotocol/ext-apps";
+import type { McpUiHostContext } from "@modelcontextprotocol/ext-apps";
 import { useApp } from "@modelcontextprotocol/ext-apps/react";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import styles from "./mcp-app.module.css";
 
-function extractVisualizationId(result: CallToolResult): string {
+type ToolData =
+  | { tool: "show-visualization"; visualizationId: string }
+  | { tool: "show-kda"; kdaId: string };
+
+function parseToolData(result: CallToolResult): ToolData | null {
   const textContent = result.content?.find((c) => c.type === "text");
-  if (!textContent || textContent.type !== "text") return "unknown";
+  if (!textContent || textContent.type !== "text") return null;
   try {
-    const data = JSON.parse(textContent.text);
-    return data.visualizationId ?? "unknown";
+    return JSON.parse(textContent.text) as ToolData;
   } catch {
-    return "unknown";
+    return null;
   }
 }
 
-function VisualizationApp() {
-  const [toolResult, setToolResult] = useState<CallToolResult | null>(null);
+function AnalyticsApp() {
+  const [toolData, setToolData] = useState<ToolData | null>(null);
   const [hostContext, setHostContext] = useState<McpUiHostContext | undefined>();
 
   const { app, error } = useApp({
-    appInfo: { name: "Visualization App", version: "1.0.0" },
+    appInfo: { name: "Analytics App", version: "1.0.0" },
     capabilities: {},
     onAppCreated: (app) => {
-      app.onteardown = async () => ({ });
+      app.onteardown = async () => ({});
 
       app.ontoolinput = async (input) => {
         console.info("Received tool input:", input);
@@ -32,7 +35,8 @@ function VisualizationApp() {
 
       app.ontoolresult = async (result) => {
         console.info("Received tool result:", result);
-        setToolResult(result);
+        const data = parseToolData(result);
+        if (data) setToolData(data);
       };
 
       app.ontoolcancelled = (params) => {
@@ -56,42 +60,56 @@ function VisualizationApp() {
   if (error) return <div className={styles.error}>Error: {error.message}</div>;
   if (!app) return <div className={styles.loading}>Connecting...</div>;
 
-  return (
-    <VisualizationView
-      app={app}
-      toolResult={toolResult}
-      hostContext={hostContext}
-    />
-  );
+  return <AppRouter toolData={toolData} hostContext={hostContext} />;
 }
 
-interface VisualizationViewProps {
-  app: App;
-  toolResult: CallToolResult | null;
+interface AppRouterProps {
+  toolData: ToolData | null;
   hostContext?: McpUiHostContext;
 }
 
-function VisualizationView({ toolResult, hostContext }: VisualizationViewProps) {
-  const visualizationId = toolResult
-    ? extractVisualizationId(toolResult)
-    : null;
+function AppRouter({ toolData, hostContext }: AppRouterProps) {
+  const safeAreaStyle = {
+    paddingTop: hostContext?.safeAreaInsets?.top,
+    paddingRight: hostContext?.safeAreaInsets?.right,
+    paddingBottom: hostContext?.safeAreaInsets?.bottom,
+    paddingLeft: hostContext?.safeAreaInsets?.left,
+  };
 
+  if (!toolData) {
+    return (
+      <main className={styles.container} style={safeAreaStyle}>
+        <div className={styles.card}>
+          <div className={styles.header}>
+            <span className={styles.title}>Analytics</span>
+          </div>
+          <div className={styles.placeholder}>
+            <span className={styles.placeholderText}>Waiting for data...</span>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (toolData.tool === "show-visualization") {
+    return <VisualizationView id={toolData.visualizationId} safeAreaStyle={safeAreaStyle} />;
+  }
+
+  return <KdaView id={toolData.kdaId} safeAreaStyle={safeAreaStyle} />;
+}
+
+interface ViewProps {
+  id: string;
+  safeAreaStyle: React.CSSProperties;
+}
+
+function VisualizationView({ id, safeAreaStyle }: ViewProps) {
   return (
-    <main
-      className={styles.container}
-      style={{
-        paddingTop: hostContext?.safeAreaInsets?.top,
-        paddingRight: hostContext?.safeAreaInsets?.right,
-        paddingBottom: hostContext?.safeAreaInsets?.bottom,
-        paddingLeft: hostContext?.safeAreaInsets?.left,
-      }}
-    >
+    <main className={styles.container} style={safeAreaStyle}>
       <div className={styles.card}>
         <div className={styles.header}>
           <span className={styles.title}>Visualization</span>
-          {visualizationId && (
-            <code className={styles.vizId}>{visualizationId}</code>
-          )}
+          <code className={styles.itemId}>{id}</code>
         </div>
         <div className={styles.placeholder}>
           <svg
@@ -109,9 +127,44 @@ function VisualizationView({ toolResult, hostContext }: VisualizationViewProps) 
             <rect x="3" y="16" width="7" height="5" rx="1" />
           </svg>
           <span className={styles.placeholderText}>
-            {visualizationId
-              ? `Visualization "${visualizationId}" will render here.`
-              : "Waiting for visualization data..."}
+            Visualization "{id}" will render here.
+          </span>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function KdaView({ id, safeAreaStyle }: ViewProps) {
+  return (
+    <main className={styles.container} style={safeAreaStyle}>
+      <div className={styles.card}>
+        <div className={styles.header}>
+          <span className={styles.title}>Key Driver Analysis</span>
+          <code className={styles.itemId}>{id}</code>
+        </div>
+        <div className={styles.placeholder}>
+          <svg
+            className={styles.placeholderIcon}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <line x1="12" y1="3" x2="12" y2="7" />
+            <line x1="12" y1="17" x2="12" y2="21" />
+            <line x1="3" y1="12" x2="7" y2="12" />
+            <line x1="17" y1="12" x2="21" y2="12" />
+            <line x1="5.6" y1="5.6" x2="8.5" y2="8.5" />
+            <line x1="15.5" y1="15.5" x2="18.4" y2="18.4" />
+            <line x1="5.6" y1="18.4" x2="8.5" y2="15.5" />
+            <line x1="15.5" y1="8.5" x2="18.4" y2="5.6" />
+          </svg>
+          <span className={styles.placeholderText}>
+            KDA "{id}" will render here.
           </span>
         </div>
       </div>
@@ -121,6 +174,6 @@ function VisualizationView({ toolResult, hostContext }: VisualizationViewProps) 
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <VisualizationApp />
+    <AnalyticsApp />
   </StrictMode>,
 );
