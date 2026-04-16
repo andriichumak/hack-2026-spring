@@ -1,7 +1,7 @@
-import type { McpUiHostContext } from "@modelcontextprotocol/ext-apps";
+import type { App, McpUiHostContext } from "@modelcontextprotocol/ext-apps";
 import { useApp } from "@modelcontextprotocol/ext-apps/react";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import styles from "./mcp-app.module.css";
 
@@ -60,15 +60,16 @@ function AnalyticsApp() {
   if (error) return <div className={styles.error}>Error: {error.message}</div>;
   if (!app) return <div className={styles.loading}>Connecting...</div>;
 
-  return <AppRouter toolData={toolData} hostContext={hostContext} />;
+  return <AppRouter app={app} toolData={toolData} hostContext={hostContext} />;
 }
 
 interface AppRouterProps {
+  app: App;
   toolData: ToolData | null;
   hostContext?: McpUiHostContext;
 }
 
-function AppRouter({ toolData, hostContext }: AppRouterProps) {
+function AppRouter({ app, toolData, hostContext }: AppRouterProps) {
   const safeAreaStyle = {
     paddingTop: hostContext?.safeAreaInsets?.top,
     paddingRight: hostContext?.safeAreaInsets?.right,
@@ -92,7 +93,7 @@ function AppRouter({ toolData, hostContext }: AppRouterProps) {
   }
 
   if (toolData.tool === "show-visualization") {
-    return <VisualizationView id={toolData.visualizationId} safeAreaStyle={safeAreaStyle} />;
+    return <VisualizationView app={app} id={toolData.visualizationId} safeAreaStyle={safeAreaStyle} />;
   }
 
   return <KdaView id={toolData.kdaId} safeAreaStyle={safeAreaStyle} />;
@@ -103,7 +104,39 @@ interface ViewProps {
   safeAreaStyle: React.CSSProperties;
 }
 
-function VisualizationView({ id, safeAreaStyle }: ViewProps) {
+interface VisualizationViewProps extends ViewProps {
+  app: App;
+}
+
+function VisualizationView({ app, id, safeAreaStyle }: VisualizationViewProps) {
+  const [sending, setSending] = useState(false);
+
+  const handleRunKda = useCallback(async () => {
+    setSending(true);
+    try {
+      const kdaId = "kda-42";
+      const { isError } = await app.sendMessage(
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `Run Key Driver Analysis (KDA) for visualization "${id}". Use KDA ID: "${kdaId}"`,
+            },
+          ],
+        },
+        { signal: AbortSignal.timeout(10000) },
+      );
+      if (isError) {
+        console.error("Host rejected the message");
+      }
+    } catch (e) {
+      console.error("Failed to send message:", e);
+    } finally {
+      setSending(false);
+    }
+  }, [app, id]);
+
   return (
     <main className={styles.container} style={safeAreaStyle}>
       <div className={styles.card}>
@@ -129,6 +162,11 @@ function VisualizationView({ id, safeAreaStyle }: ViewProps) {
           <span className={styles.placeholderText}>
             Visualization "{id}" will render here.
           </span>
+        </div>
+        <div className={styles.actions}>
+          <button className={styles.actionButton} onClick={handleRunKda} disabled={sending}>
+            {sending ? "Requesting..." : "Run KDA"}
+          </button>
         </div>
       </div>
     </main>
